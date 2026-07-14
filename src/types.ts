@@ -1,4 +1,13 @@
 export type Token = 'UP' | 'DOWN';
+export enum LogType {
+    INFO = 'INFO',
+    ERROR = 'ERROR',
+    DEBUG = 'DEBUG',
+    TRADE = 'TRADE',
+    CRITICAL = 'CRITICAL',
+    WARNING = 'WARNING',
+    TRACE = 'TRACE',
+}
 
 export type BTCInfo = {
     initialPrice: number;
