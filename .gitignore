@@ -1,0 +1,30 @@
+# Security
+.env
+
+# Dependencies
+node_modules/
+
+# Package Files
+package-lock.json
+package.json
+tsconfig.json
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Temp
+temp/
+tmp-*.txt
+
+# OS
+.DS_Store
