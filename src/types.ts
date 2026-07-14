@@ -27,6 +27,7 @@ export interface Strategy {
     id: string;
     buyPrice: number;
     sellPrice: number;
+    minTimeLeft: number; // Minimum seconds left on the period to consider this strategy
     activePositionId?: string;
     usedOnce?: boolean;
 }
@@ -35,6 +36,8 @@ export interface BotState {
     periodId: string;
     periodStartTime: number;
     investedAmount: number;
+    totalInvestedThisPeriod: number;
+    outOfBoundsCountThisPeriod: number;
     strategies: Strategy[];
     btcInfo: BTCInfo;
     positions: Position[];
