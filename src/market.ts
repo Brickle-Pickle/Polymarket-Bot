@@ -34,7 +34,7 @@ export interface MarketInfo {
     endDate: Date;
 }
 
-// MarketService — wraps all Polymarket interaction
+// MarketService - wraps all Polymarket interaction
 
 const GAMMA_API_URL = 'https://gamma-api.polymarket.com';
 
@@ -74,7 +74,7 @@ export class MarketService {
             this.host,
             this.chainId,
             this.walletClient, // signer
-            undefined, // creds — not yet
+            undefined, // creds - not yet
         );
 
         await this.logger.log(LogType.INFO, '[MARKET] Deriving API credentials...');
@@ -91,7 +91,7 @@ export class MarketService {
 
         // 4. Verify connectivity
         const ok = await this.client.getOk();
-        await this.logger.log(LogType.INFO, `[MARKET] Connected to CLOB API — ${JSON.stringify(ok)}`);
+        await this.logger.log(LogType.INFO, `[MARKET] Connected to CLOB API - ${JSON.stringify(ok)}`);
     }
 
     // Finds the active "BTC UP DOWN 15min" market from the Gamma API.
@@ -108,7 +108,7 @@ export class MarketService {
             const markets: GammaMarket[] = await response.json() as GammaMarket[];
 
             if (!markets || markets.length === 0) {
-                // Try the next window — the current one might not exist yet
+                // Try the next window - the current one might not exist yet
                 const nextSlug = `btc-updown-15m-${windowStart + 900}`;
                 await this.logger.log(LogType.INFO, `[MARKET] Current window not found, trying next: ${nextSlug}`);
 
@@ -131,7 +131,7 @@ export class MarketService {
     }
 
     private parseGammaMarket(market: GammaMarket): MarketInfo {
-        // outcomes and clobTokenIds are JSON strings — parse them
+        // outcomes and clobTokenIds are JSON strings - parse them
         const outcomes: string[] = JSON.parse(market.outcomes);
         const tokenIds: string[] = JSON.parse(market.clobTokenIds);
 
@@ -157,14 +157,14 @@ export class MarketService {
     public async getMarketPrices(marketInfo: MarketInfo): Promise<MarketData> {
         this.ensureClient();
 
-        const [upBook, downBook] = await this.client!.getOrderBooks([
-            { token_id: marketInfo.upTokenId, side: Side.BUY },
-            { token_id: marketInfo.downTokenId, side: Side.BUY },
+        const [upMid, downMid] = await Promise.all([
+            this.client!.getMidpoint(marketInfo.upTokenId),
+            this.client!.getMidpoint(marketInfo.downTokenId),
         ]);
 
         return {
-            upToken: parseFloat(upBook?.last_trade_price ?? '0'),
-            downToken: parseFloat(downBook?.last_trade_price ?? '0'),
+            upToken: parseFloat(upMid.mid ?? '0'),
+            downToken: parseFloat(downMid.mid ?? '0'),
             timestamp: Date.now(),
         };
     }

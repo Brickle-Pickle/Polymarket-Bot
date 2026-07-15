@@ -18,7 +18,7 @@ export class BtcPriceService {
 
     /**
      * Opens the WebSocket connection to Binance and sets up event handlers.
-     * Safe to call multiple times — cleans up any existing connection first.
+     * Safe to call multiple times - cleans up any existing connection first.
     */
     public connect(): void {
         // Clean up any existing connection before opening a new one
