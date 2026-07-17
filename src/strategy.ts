@@ -33,8 +33,8 @@ export class StrategyEngine {
             state.totalInvestedThisPeriod >= BASIC_BOT_CONFIG.MAX_INVESTED_PER_15_MINS ||
             state.investedAmount >= BASIC_BOT_CONFIG.MAX_INVESTED_SIMULTANEOUSLY ||
             state.lastMinuteData.filter(
-                m => m.upToken < BASIC_BOT_CONFIG.PERIOD_OUT_OF_BOUNDS ||
-                    m.downToken < BASIC_BOT_CONFIG.PERIOD_OUT_OF_BOUNDS
+                m => m.upToken <= BASIC_BOT_CONFIG.PERIOD_OUT_OF_BOUNDS ||
+                    m.downToken <= BASIC_BOT_CONFIG.PERIOD_OUT_OF_BOUNDS
             ).length > 0
         ) canBuy = false;
 
@@ -45,15 +45,16 @@ export class StrategyEngine {
                 if (
                     strategy.usedOnce ||
                     this.market.getSecondsRemaining(marketInfo) <= strategy.minTimeLeft ||
-                    (strategy.afterStrategyUsedId && !state.strategies.find(s => s.id === strategy.afterStrategyUsedId)?.usedOnce)
+                    (strategy.afterStrategyUsedId && !state.strategies.find(s => s.id === strategy.afterStrategyUsedId)?.usedOnce) ||
+                    this.checkIfStrategyAlreadyInUse(state, strategy.id)
                 ) continue;
 
                 // Check if strategy is applicable to current price action
-                const token = await this.checkStrategyApplicable(strategy.buyPrice, marketInfo, prices);
+                const token = this.checkStrategyApplicable(strategy.buyPrice, marketInfo, prices);
                 if (!token) continue;
 
                 // Check if it's in use
-                if (state.positions.filter(p => p.strategyId === strategy.id).length > 0) continue;
+                if (state.positions.filter(p => p.strategyId === strategy.id && p.status !== 'CLOSED').length > 0) continue;
 
                 // Buy tokens (tokenId, price, amount)
                 const order = await this.market.placeLimitBuy(
@@ -80,7 +81,7 @@ export class StrategyEngine {
                 state.totalInvestedThisPeriod += BASIC_BOT_CONFIG.INVESTMENT_PER_TRADE;
                 state.investedAmount += BASIC_BOT_CONFIG.INVESTMENT_PER_TRADE;
                 if (strategy.usedOnce !== undefined && !strategy.usedOnce) strategy.usedOnce = true;
-                this.logger.log(LogType.TRADE, `[STRATEGY] Bought ${token} at ${strategy.buyPrice}`);
+                void this.logger.log(LogType.TRADE, `[STRATEGY] Bought ${token} at ${strategy.buyPrice}`);
             }
         }
 
@@ -133,10 +134,15 @@ export class StrategyEngine {
         }
     }
 
-    private async checkStrategyApplicable(buyPrice: number, marketInfo: MarketInfo, prices: MarketData): Promise<Token | null> {
+    private checkStrategyApplicable(buyPrice: number, marketInfo: MarketInfo, prices: MarketData): Token | null {
         if (Math.abs(prices.upToken - buyPrice) < 0.01) return 'UP';
         if (Math.abs(prices.downToken - buyPrice) < 0.01) return 'DOWN';
         return null;
+    }
+
+    private checkIfStrategyAlreadyInUse(state: BotState, strategyId: string): boolean {
+        const positions = state.positions.filter(p => p.strategyId === strategyId && p.status !== 'CLOSED');
+        return positions.length > 0;
     }
 
     // Returns true if we can buy
@@ -148,7 +154,7 @@ export class StrategyEngine {
         if (!state.outBounds && isOutOfBoundsToken) {
             state.outBounds = true;
             state.outOfBoundsCountThisPeriod++;
-            this.logger.log(LogType.WARNING, `[STRATEGY] Token is out of bounds: ${isOutOfBoundsToken}`);
+            void this.logger.log(LogType.WARNING, `[STRATEGY] Token is out of bounds: ${isOutOfBoundsToken}`);
             return false;
         };
 

@@ -5,7 +5,6 @@ export const BASIC_BOT_CONFIG = {
             buyPrice: 0.2,
             sellPrice: 0.6,
             minTimeLeft: 120, // Minimum seconds left on the period to consider this strategy
-            afterStrategyUsedId: 'largeSell',
         },
         {
             id: 'mid',

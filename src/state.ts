@@ -13,7 +13,7 @@ export function createInitialState(): BotState {
         investedAmount: 0,
         totalInvestedThisPeriod: 0,
         outOfBoundsCountThisPeriod: 0,
-        strategies: BASIC_BOT_CONFIG.STRATEGIES.map(strategy => ({ ...strategy, executed: false })),
+        strategies: BASIC_BOT_CONFIG.STRATEGIES.map(strategy => ({ ...strategy })),
         btcInfo: {
             initialPrice: 0,
             initialPriceTimestamp: 0,
