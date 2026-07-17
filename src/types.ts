@@ -23,6 +23,7 @@ export interface Position {
     timestamp: number;
     sellOrderId?: string;
     status: 'PENDING_BUY' | 'BUY_FILLED' | 'PENDING_SELL' | 'CLOSED';
+    strategyId: string;
 }
 
 export interface MarketData {
@@ -39,6 +40,7 @@ export interface Strategy {
     minTimeLeft: number; // Minimum seconds left on the period to consider this strategy
     activePositionId?: string;
     usedOnce?: boolean;
+    afterStrategyUsedId?: string;
 }
 
 export interface BotState {
@@ -53,6 +55,7 @@ export interface BotState {
     lastMinuteData: MarketData[];
     last5MinutesData: MarketData[]; // For now does nothing. Will be used for future strategies.
     last10MinutesData: MarketData[]; // For now does nothing. Will be used for future strategies.
+    inBounds: boolean;
 }
 
 export interface Trade {

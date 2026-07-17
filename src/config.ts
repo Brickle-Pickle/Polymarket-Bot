@@ -25,6 +25,8 @@ export const BASIC_BOT_CONFIG = {
             buyPrice: 0.1,
             sellPrice: 0.16,
             minTimeLeft: 60,
+            usedOnce: false,
+            afterStrategyUsedId: 'short',
         }
     ],
 
