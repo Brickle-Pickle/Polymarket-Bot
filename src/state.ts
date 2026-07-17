@@ -22,7 +22,7 @@ export function createInitialState(): BotState {
         lastMinuteData: [],
         last5MinutesData: [],
         last10MinutesData: [],
-        inBounds: false,
+        outBounds: false,
     };
 }
 

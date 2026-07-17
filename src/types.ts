@@ -55,7 +55,7 @@ export interface BotState {
     lastMinuteData: MarketData[];
     last5MinutesData: MarketData[]; // For now does nothing. Will be used for future strategies.
     last10MinutesData: MarketData[]; // For now does nothing. Will be used for future strategies.
-    inBounds: boolean;
+    outBounds: boolean;
 }
 
 export interface Trade {

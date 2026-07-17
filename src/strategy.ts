@@ -66,7 +66,7 @@ export class StrategyEngine {
 
                 // Save position
                 state.positions.push({
-                    orderId: order.orderId,
+                    orderId: order.orderID,
                     token: token,
                     buyPrice: strategy.buyPrice,
                     amount: BASIC_BOT_CONFIG.INVESTMENT_PER_TRADE,
@@ -84,22 +84,25 @@ export class StrategyEngine {
             }
         }
 
-        // Check selling
         for (const p of state.positions) {
+            // Step 1: PENDING_BUY - waiting for our buy limit order to fill
             if (p.status === 'PENDING_BUY') {
                 const order = await this.market.getOrder(p.orderId);
-                if (!order || order.status !== 'OPEN') continue;
-                p.status = 'PENDING_SELL';
+                if (!order) continue;
+
+                if (order.size_matched === order.original_size) {
+                    p.status = 'BUY_FILLED';
+                    await this.logger.log(LogType.TRADE, `[STRATEGY] Buy FILLED: ${p.token} at ${p.buyPrice}`);
+                } else {
+                    continue; // still waiting for fill
+                }
             }
 
-            if (p.status === 'PENDING_SELL') {
-                const order = await this.market.getOrder(p.orderId);
+            // Step 2: BUY_FILLED - we own the shares, wait for price to reach target then place sell order
+            if (p.status === 'BUY_FILLED') {
+                const currentPrice = p.token === 'UP' ? prices.upToken : prices.downToken;
 
-                // Selling conditions
-                if (!order || order.status === 'OPEN') continue;
-
-                if ((p.token === 'UP' ? prices.upToken : prices.downToken) >= p.targetSellPrice) {
-                    // Make sell
+                if (currentPrice >= p.targetSellPrice) {
                     const sellOrder = await this.market.placeLimitSell(
                         p.token === 'UP' ? marketInfo.upTokenId : marketInfo.downTokenId,
                         p.targetSellPrice,
@@ -107,11 +110,24 @@ export class StrategyEngine {
                     );
                     if (!sellOrder) continue;
 
-                    p.sellOrderId = sellOrder.orderId;
+                    p.sellOrderId = sellOrder.orderID;
+                    p.status = 'PENDING_SELL';
+                    await this.logger.log(LogType.TRADE, `[STRATEGY] Sell order placed: ${p.token} at ${p.targetSellPrice}`);
+                }
+                continue;
+            }
+
+            // Step 3: PENDING_SELL - waiting for our sell limit order to fill
+            if (p.status === 'PENDING_SELL') {
+                if (!p.sellOrderId) continue;
+
+                const sellOrder = await this.market.getOrder(p.sellOrderId);
+                if (!sellOrder) continue;
+
+                if (sellOrder.size_matched === sellOrder.original_size) {
                     p.status = 'CLOSED';
                     state.investedAmount -= BASIC_BOT_CONFIG.INVESTMENT_PER_TRADE;
-
-                    this.logger.log(LogType.TRADE, `[STRATEGY] Sold ${p.token} at ${(p.token === 'UP' ? prices.upToken : prices.downToken)}`);
+                    await this.logger.log(LogType.TRADE, `[STRATEGY] Sell FILLED: ${p.token} — position closed`);
                 }
             }
         }
@@ -123,23 +139,24 @@ export class StrategyEngine {
         return null;
     }
 
+    // Returns true if we can buy
     private checkOutOfBounds(state: BotState, prices: MarketData): boolean {
         const isOutOfBoundsToken =
             prices.upToken < BASIC_BOT_CONFIG.PERIOD_OUT_OF_BOUNDS ? 'UP' :
                 prices.downToken < BASIC_BOT_CONFIG.PERIOD_OUT_OF_BOUNDS ? 'DOWN' : null;
 
-        if (!state.inBounds && isOutOfBoundsToken) {
-            state.inBounds = true;
+        if (!state.outBounds && isOutOfBoundsToken) {
+            state.outBounds = true;
             state.outOfBoundsCountThisPeriod++;
             this.logger.log(LogType.WARNING, `[STRATEGY] Token is out of bounds: ${isOutOfBoundsToken}`);
-            return true;
+            return false;
         };
 
-        if (state.inBounds && !isOutOfBoundsToken) {
-            state.inBounds = false;
+        if (state.outBounds && !isOutOfBoundsToken) {
+            state.outBounds = false;
         }
 
-        return false;
+        return true;
     }
 
     private updateMinutesData(state: BotState, prices: MarketData): void {
@@ -167,7 +184,7 @@ export class StrategyEngine {
         state.lastMinuteData = [];
         state.last5MinutesData = [];
         state.last10MinutesData = [];
-        state.inBounds = false;
+        state.outBounds = false;
         state.btcInfo.initialPrice = btcPrice;
         state.btcInfo.initialPriceTimestamp = Date.now();
     }
