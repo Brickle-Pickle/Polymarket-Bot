@@ -14,13 +14,13 @@ export class StrategyEngine {
         if (!prices) return;
         let canBuy: boolean = true;
 
-        this.updateMinutesData(state, prices);
-
         // If new period reset BotState
         if (
             state.periodId === '' ||
             marketInfo.conditionId !== state.periodId
         ) this.resetBotState(state, marketInfo.conditionId, btcPrice);
+
+        this.updateMinutesData(state, prices);
 
         if (canBuy) canBuy = this.checkOutOfBounds(state, prices);
         else this.checkOutOfBounds(state, prices);
@@ -51,10 +51,7 @@ export class StrategyEngine {
 
                 // Check if strategy is applicable to current price action
                 const token = this.checkStrategyApplicable(strategy.buyPrice, marketInfo, prices);
-                if (!token) continue;
-
-                // Check if it's in use
-                if (state.positions.filter(p => p.strategyId === strategy.id && p.status !== 'CLOSED').length > 0) continue;
+                if (!token || this.checkIfStrategyAlreadyInUse(state, strategy.id)) continue;
 
                 // Buy tokens (tokenId, price, amount)
                 const order = await this.market.placeLimitBuy(
@@ -148,21 +145,20 @@ export class StrategyEngine {
     // Returns true if we can buy
     private checkOutOfBounds(state: BotState, prices: MarketData): boolean {
         const isOutOfBoundsToken =
-            prices.upToken < BASIC_BOT_CONFIG.PERIOD_OUT_OF_BOUNDS ? 'UP' :
-                prices.downToken < BASIC_BOT_CONFIG.PERIOD_OUT_OF_BOUNDS ? 'DOWN' : null;
+            prices.upToken <= BASIC_BOT_CONFIG.PERIOD_OUT_OF_BOUNDS ? 'UP' :
+                prices.downToken <= BASIC_BOT_CONFIG.PERIOD_OUT_OF_BOUNDS ? 'DOWN' : null;
 
         if (!state.outBounds && isOutOfBoundsToken) {
             state.outBounds = true;
             state.outOfBoundsCountThisPeriod++;
             void this.logger.log(LogType.WARNING, `[STRATEGY] Token is out of bounds: ${isOutOfBoundsToken}`);
-            return false;
-        };
+        }
 
         if (state.outBounds && !isOutOfBoundsToken) {
             state.outBounds = false;
         }
 
-        return true;
+        return !isOutOfBoundsToken;
     }
 
     private updateMinutesData(state: BotState, prices: MarketData): void {
